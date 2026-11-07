@@ -6,7 +6,7 @@
 
 ## Progress
 - [x] Day 1: kind cluster, Argo CD, Vault, External Secrets (keys synced from Vault, never stored in Git, rotation with zero redeploys)
-- [ ] Day 2: Argo CD app-of-apps (GitOps for everything) + LiteLLM gateway
+- [x] Day 2: Argo CD app-of-apps (whole platform deployed from Git) + LiteLLM gateway live (mock model; rejects requests without a valid key; master key from Vault)
 - [ ] Day 3: per-team virtual keys, budgets, rate limits
 - [ ] SanVi Launch agent: one sentence → Dockerfile, Helm chart, CI, Argo CD app, alerts → PR
 
