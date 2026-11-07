@@ -1,0 +1,49 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: litellm
+  namespace: sanvi
+  labels: { app: litellm }
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: litellm }
+  template:
+    metadata:
+      labels: { app: litellm }
+    spec:
+      containers:
+        - name: litellm
+          image: ghcr.io/berriai/litellm:main-stable
+          args: ["--config", "/app/config.yaml", "--port", "4000"]
+          ports:
+            - containerPort: 4000
+          envFrom:
+            - secretRef: { name: llm-keys }
+          volumeMounts:
+            - { name: config, mountPath: /app/config.yaml, subPath: config.yaml }
+          resources:
+            requests: { cpu: 200m, memory: 512Mi }
+            limits: { memory: 1536Mi }
+          readinessProbe:
+            httpGet: { path: /health/readiness, port: 4000 }
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /health/liveliness, port: 4000 }
+            initialDelaySeconds: 60
+            periodSeconds: 20
+      volumes:
+        - name: config
+          configMap: { name: litellm-config }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: litellm
+  namespace: sanvi
+spec:
+  selector: { app: litellm }
+  ports:
+    - port: 4000
+      targetPort: 4000

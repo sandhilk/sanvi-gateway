@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: litellm-config
+  namespace: sanvi
+data:
+  config.yaml: |
+    model_list:
+      - model_name: sanvi-mock
+        litellm_params:
+          model: openai/gpt-4o-mini
+          api_key: os.environ/LLM_API_KEY
+          mock_response: "Hello from the SanVi gateway (mock model, no cost)"
+    general_settings:
+      master_key: os.environ/LITELLM_MASTER_KEY
