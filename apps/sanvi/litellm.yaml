@@ -20,18 +20,26 @@ spec:
             - containerPort: 4000
           envFrom:
             - secretRef: { name: llm-keys }
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef: { name: sanvi-pg-app, key: uri }
           volumeMounts:
             - { name: config, mountPath: /app/config.yaml, subPath: config.yaml }
           resources:
             requests: { cpu: 200m, memory: 512Mi }
             limits: { memory: 1536Mi }
+          startupProbe:
+            httpGet: { path: /health/liveliness, port: 4000 }
+            periodSeconds: 10
+            failureThreshold: 30
           readinessProbe:
             httpGet: { path: /health/readiness, port: 4000 }
             initialDelaySeconds: 20
             periodSeconds: 10
           livenessProbe:
             httpGet: { path: /health/liveliness, port: 4000 }
-            initialDelaySeconds: 60
+            initialDelaySeconds: 10
             periodSeconds: 20
       volumes:
         - name: config
