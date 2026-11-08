@@ -1,0 +1,44 @@
+{
+  "pass_rate": 1.0,
+  "passed": 5,
+  "total": 5,
+  "avg_attempts": 1.0,
+  "cost_usd": 0.1836,
+  "results": [
+    {
+      "id": "python-api",
+      "passed": true,
+      "attempts": 1,
+      "seconds": 22.9,
+      "last_line": "Added a ClusterIP Service and a PodDisruptionBudget (minAvailable 1) so node drains never take down both pods. The Docke"
+    },
+    {
+      "id": "node-web",
+      "passed": true,
+      "attempts": 1,
+      "seconds": 19.7,
+      "last_line": "A PDB keeps at least 2 pods up during disruptions. The Dockerfile assumes the entrypoint is server.js, and liveness uses"
+    },
+    {
+      "id": "go-single",
+      "passed": true,
+      "attempts": 1,
+      "seconds": 17.6,
+      "last_line": "The PDB template only renders when replicaCount > 1, so it is skipped at 1 replica (it would block node drains) and acti"
+    },
+    {
+      "id": "java-api",
+      "passed": true,
+      "attempts": 1,
+      "seconds": 24.4,
+      "last_line": "A PodDisruptionBudget (minAvailable 1) keeps at least one pod up during node drains, and a ClusterIP Service exposes the"
+    },
+    {
+      "id": "python-env",
+      "passed": true,
+      "attempts": 1,
+      "seconds": 20.3,
+      "last_line": "A PDB with minAvailable 1 keeps one pod up during node drains. The Dockerfile expects requirements.txt and an app.py exp"
+    }
+  ]
+}
