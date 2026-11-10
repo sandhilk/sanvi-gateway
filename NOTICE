@@ -1,0 +1,6 @@
+SanVi
+Copyright 2026 Sandhil Kypa
+https://github.com/sandhilk/sanvi-gateway
+
+This product is licensed under the Apache License, Version 2.0.
+It builds on LiteLLM (https://github.com/BerriAI/litellm), which is licensed separately.

@@ -67,3 +67,7 @@ python3 evals/run_evals.py        # exits 1 if the pass rate drops below 80%
 
 ## Lab notes
 Runs on kind (in GitHub Codespaces). Vault runs in dev mode for local learning only. LiteLLM is the gateway engine; SanVi is the platform, security model and agent built around it.
+
+---
+
+Created by **Sandhil Kypa** · Licensed under [Apache 2.0](LICENSE) · See [NOTICE](NOTICE)
