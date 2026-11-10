@@ -14,6 +14,6 @@ teams:
   - alias: team-support
     owner: support-lead
     models: [sanvi-mock]
-    max_budget: 1
+    max_budget: 2
     budget_duration: 30d
     rpm_limit: 30
