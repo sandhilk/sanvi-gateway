@@ -73,3 +73,14 @@ Runs on kind (in GitHub Codespaces). Vault runs in dev mode for local learning o
 ---
 
 Created by **Sandhil Kypa** · Licensed under [Apache 2.0](LICENSE) · See [NOTICE](NOTICE)
+
+## Budget alerts and kill switch
+
+Budgets alone cut a team off at 100% with no warning. SanVi adds two operator tools:
+
+| Tool | What it does | Tested |
+|---|---|---|
+| `scripts/budget_watch.py` | Lists every key's spend against its budget: **OK**, **WARN** (80%+), **OVER** (100%+). Optional Slack-style webhook via `SANVI_ALERT_WEBHOOK`. Exits 2 when any key is at 80%+, so a CronJob or CI step can alert on it. | Demo key at 85% spend → `WARN team-demo (85%)` |
+| `scripts/kill_switch.sh` | Reversible red button: `block <team>`, `block-all`, `unblock <team>`, `unblock-all`, `status`. Keys, budgets and history are kept. | `block team-demo` → **401**; `unblock` → **200** |
+
+Use cases: a leaked key, a runaway agent loop, or an unexpected spend spike, stopped in seconds.
