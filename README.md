@@ -137,3 +137,13 @@ Most teams send every request to their most expensive model. `scripts/rightsize.
 | sanvi-fast (Claude Haiku) | 5/5 | $0.0094 | 13.7s |
 
 **Recommendation: switch this workload to sanvi-fast.** Same quality, 95% lower cost, 40% faster. At $50 a month that's about **$48 a month saved**. Full report: [`evals/rightsize-report.md`](evals/rightsize-report.md). Re-run it any time from **Actions → rightsize → Run workflow**.
+
+## AI spend dashboard (Grafana)
+
+![SanVi AI spend dashboard](docs/grafana-dashboard.png)
+
+Total spend, spend by team and model, spend over time, **budget used per team** (amber at 80%, red at 100%) and response time per model, so non-technical stakeholders can see where AI money goes at a glance.
+
+- **Dashboard as code:** `dashboards/sanvi-spend.json`, shipped as a ConfigMap and loaded by Grafana's sidecar
+- **Deployed by Argo CD:** Grafana Helm chart (pinned 10.5.15), datasource provisioned from values
+- **Privacy by design:** Grafana uses a read-only Postgres user with **column-level grants**. It can read cost and timing, but **never prompts or responses** (`permission denied`).
