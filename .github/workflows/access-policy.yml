@@ -1,10 +1,10 @@
 name: access-policy
 on:
   pull_request:
-    paths: ["access/**", "scripts/access_sync.py", ".github/workflows/access-policy.yml"]
+    paths: ["access/**", "scripts/**", "apps/sanvi/**", ".github/workflows/access-policy.yml"]
   push:
     branches: [main]
-    paths: ["access/**", "scripts/access_sync.py", ".github/workflows/access-policy.yml"]
+    paths: ["access/**", "scripts/**", "apps/sanvi/**", ".github/workflows/access-policy.yml"]
 permissions:
   contents: read
 jobs:
@@ -18,3 +18,7 @@ jobs:
       - run: pip install -q pyyaml
       - name: Validate access/teams.yaml against its policy
         run: python3 scripts/access_sync.py --validate
+      - name: ConfigMaps must match source files (run scripts/gen-configmaps.sh)
+        run: |
+          ./scripts/gen-configmaps.sh
+          git diff --exit-code apps/sanvi/ || { echo "Run ./scripts/gen-configmaps.sh and commit"; exit 1; }

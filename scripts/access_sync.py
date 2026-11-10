@@ -38,7 +38,26 @@ def api(method, path, body=None):
         return json.load(r)
 
 def store_key(alias, key):
-    yml = subprocess.run(["kubectl", "-n", "sanvi", "create", "secret", "generic", f"sanvi-key-{alias}",
+    name = f"sanvi-key-{alias}"
+    if os.environ.get("KUBERNETES_SERVICE_HOST"):   # running inside the cluster: use the Kubernetes API directly
+        import base64, ssl, urllib.error
+        sa = "/var/run/secrets/kubernetes.io/serviceaccount"
+        tok, ctx = open(f"{sa}/token").read(), ssl.create_default_context(cafile=f"{sa}/ca.crt")
+        url = "https://kubernetes.default.svc/api/v1/namespaces/sanvi/secrets"
+        body = {"apiVersion": "v1", "kind": "Secret", "type": "Opaque",
+                "metadata": {"name": name, "labels": {"managed-by": "sanvi-access"}},
+                "data": {"key": base64.b64encode(key.encode()).decode()}}
+        def send(method, u):
+            r = urllib.request.Request(u, method=method, data=json.dumps(body).encode(),
+                                       headers={"Authorization": f"Bearer {tok}", "Content-Type": "application/json"})
+            urllib.request.urlopen(r, context=ctx, timeout=30)
+        try:
+            send("POST", url)
+        except urllib.error.HTTPError as e:
+            if e.code != 409: raise
+            send("PUT", f"{url}/{name}")
+        return
+    yml = subprocess.run(["kubectl", "-n", "sanvi", "create", "secret", "generic", name,
                           "--from-file=key=/dev/stdin", "--dry-run=client", "-o", "yaml"],
                          input=key, capture_output=True, text=True, check=True).stdout
     subprocess.run(["kubectl", "apply", "-f", "-"], input=yml, capture_output=True, text=True, check=True)

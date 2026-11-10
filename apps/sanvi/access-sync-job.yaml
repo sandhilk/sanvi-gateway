@@ -1,0 +1,64 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata: { name: access-sync, namespace: sanvi }
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata: { name: access-sync, namespace: sanvi }
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["create", "get", "update"]      # only Secrets, only in this namespace
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata: { name: access-sync, namespace: sanvi }
+subjects: [{ kind: ServiceAccount, name: access-sync, namespace: sanvi }]
+roleRef: { apiGroup: rbac.authorization.k8s.io, kind: Role, name: access-sync }
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: access-sync
+  namespace: sanvi
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+spec:
+  backoffLimit: 1
+  template:
+    metadata: { labels: { app: access-sync } }
+    spec:
+      serviceAccountName: access-sync
+      restartPolicy: Never
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: access-sync
+          image: python:3.12-alpine
+          command: ["sh", "-c", "pip install -q --target /tmp/deps pyyaml && python3 /work/access_sync.py --file /work/teams.yaml --apply"]
+          env:
+            - { name: HOME, value: /tmp }
+            - { name: PIP_NO_CACHE_DIR, value: "1" }
+            - { name: PYTHONPATH, value: /tmp/deps }
+            - { name: PYTHONDONTWRITEBYTECODE, value: "1" }
+            - { name: SANVI_GATEWAY, value: "http://litellm.sanvi.svc:4000" }
+            - name: SANVI_ADMIN_KEY
+              valueFrom: { secretKeyRef: { name: llm-keys, key: LITELLM_MASTER_KEY } }
+          resources:
+            requests: { cpu: 20m, memory: 64Mi }
+            limits: { memory: 128Mi }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: ["ALL"] }
+          volumeMounts:
+            - { name: files, mountPath: /work, readOnly: true }
+            - { name: tmp, mountPath: /tmp }
+      volumes:
+        - name: files
+          configMap: { name: access-sync-files }
+        - name: tmp
+          emptyDir: {}
