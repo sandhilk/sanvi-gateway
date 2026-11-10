@@ -20,13 +20,13 @@ for k in keys:
     budget, spend = k.get("max_budget"), k.get("spend") or 0
     name = k.get("key_alias") or k.get("key_name") or "unnamed"
     if not budget:
-        print(f"  -     {name:<20} spend ${spend:.4f}  (no budget)")
+        print(f"  -     {name:<20} spend ${spend:.6f}  (no budget)")
         continue
     pct = spend / budget
     level = "OVER" if pct >= 1 else "WARN" if pct >= WARN else "OK"
-    print(f"  {level:<5} {name:<20} ${spend:.4f} / ${budget:.4f}  ({pct:.0%})")
+    print(f"  {level:<5} {name:<20} ${spend:.6f} / ${budget:.6f}  ({pct:.0%})")
     if level != "OK":
-        alerts.append(f"SanVi budget {level}: {name} at {pct:.0%} (${spend:.2f} of ${budget:.4f})")
+        alerts.append(f"SanVi budget {level}: {name} at {pct:.0%} (${spend:.2f} of ${budget:.6f})")
 
 for a in alerts:
     print("ALERT:", a)
