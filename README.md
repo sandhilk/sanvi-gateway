@@ -1,4 +1,4 @@
-<p align="center"><img src="docs/brand/sanvi-lockup.png" alt="SanVi" width="420"></p>
+<p align="center"><img src="docs/brand/sanvi-social-preview.png" alt="SanVi: open-source AI platform for Kubernetes" width="720"></p>
 
 # SanVi
 
