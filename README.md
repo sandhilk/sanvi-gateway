@@ -1,5 +1,7 @@
 # SanVi
 
+[![agent-evals](https://github.com/sandhilk/sanvi-gateway/actions/workflows/evals.yml/badge.svg)](https://github.com/sandhilk/sanvi-gateway/actions/workflows/evals.yml)
+
 **An open-source AI platform for Kubernetes.** A gateway that controls how a company uses AI (per-team keys, budgets, rate limits and cost tracking), and an agent that turns one sentence into validated deployment files.
 
 > Personal open-source project, built in the open. Everything listed under "Works today" is running and tested.
