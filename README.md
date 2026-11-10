@@ -140,6 +140,17 @@ Most teams send every request to their most expensive model. `scripts/rightsize.
 
 **Recommendation: switch this workload to sanvi-fast.** Same quality, 95% lower cost, 40% faster. At $50 a month that's about **$48 a month saved**. Full report: [`evals/rightsize-report.md`](evals/rightsize-report.md). Re-run it any time from **Actions → rightsize → Run workflow**.
 
+## Shadow Right-Sizer: prove the saving on real-style traffic
+
+Fixed evals cover one workload. `scripts/shadow_rightsize.py` takes a **sample of requests per workload** (support replies, claim summaries, staff copilot…), sends each one to the baseline and to a cheaper candidate through the gateway, and has the baseline model **grade the candidate's answer against its own** (1–5). A workload is only marked **switch** if the candidate scores 4+ on at least 90% of its samples; anything that falls short **stays on the baseline** and is listed with the reason.
+
+```bash
+read -s SANVI_AGENT_KEY && export SANVI_AGENT_KEY   # type the key, it is never echoed
+python3 scripts/shadow_rightsize.py                  # writes evals/shadow-report.md
+```
+
+The report gives cost per request, speed, verdict and **projected monthly saving per workload** (current spend from `evals/shadow_workloads.json` × measured cost cut). The included sample is an **illustrative insurer** (12 synthetic requests; spend figures are examples, not a real company). Calls go through SanVi, so keys, budgets and logs stay in your cluster; prompts still go to the model provider as normal traffic does.
+
 ## AI spend dashboard (Grafana)
 
 ![SanVi AI spend dashboard](docs/grafana-dashboard.png)
