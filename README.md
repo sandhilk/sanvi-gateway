@@ -103,3 +103,17 @@ A job **fails on purpose** when any team is at 80%+, so the failure *is* the ale
 
 Regenerate the ConfigMap after editing the script:
 `kubectl -n sanvi create configmap budget-watch-script --from-file=budget_watch.py=scripts/budget_watch.py --dry-run=client -o yaml > apps/sanvi/budget-watch-configmap.yaml`
+
+## AI access as code
+
+Who can use which models, with what budget, lives in **`access/teams.yaml`**, changed only by pull request.
+
+| Command | What it does |
+|---|---|
+| `scripts/access_sync.py --validate` | Checks the file against its policy (allowed models, max budget per team, max rpm). Runs in CI on every PR. |
+| `scripts/access_sync.py` | **Plan:** shows what would change (`+ create`, `~ update`, `- block`, `= unchanged`). |
+| `scripts/access_sync.py --apply` | Makes the gateway match the file. New keys go into Kubernetes Secrets `sanvi-key-<team>` and are never printed. |
+
+Teams removed from the file are **blocked** (reversible), not deleted. Keys the tool didn't create are left alone.
+
+**Tested:** two teams created; team-support's key calls `sanvi-mock` → **200** and is refused the paid model → **403**; a budget change in the file → `~ update` → applied → `= unchanged`. A greedy $50 request was **blocked by CI**: [PR #2](https://github.com/sandhilk/sanvi-gateway/pull/2).
