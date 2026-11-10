@@ -84,3 +84,14 @@ Budgets alone cut a team off at 100% with no warning. SanVi adds two operator to
 | `scripts/kill_switch.sh` | Reversible red button: `block <team>`, `block-all`, `unblock <team>`, `unblock-all`, `status`. Keys, budgets and history are kept. | `block team-demo` → **401**; `unblock` → **200** |
 
 Use cases: a leaked key, a runaway agent loop, or an unexpected spend spike, stopped in seconds.
+
+## Agent → pull request → human review
+
+The agent never pushes to `main`. After a PASS, `agent/sanvi_pr.sh <app> "<request>"`:
+
+1. Checks guard rails: valid app name, allowed repo (`SANVI_ALLOWED_REPOS`), clean working tree.
+2. Re-runs `helm lint`, `kubeconform` and a non-root check on the output.
+3. Copies it to `generated/<app>/` on a new `sanvi/<app>-<time>` branch.
+4. Opens a pull request labelled `sanvi-agent`, with the request, files and validation results.
+
+`generated/` is not watched by Argo CD, so merging never deploys anything by surprise. Example: [PR #1](https://github.com/sandhilk/sanvi-gateway/pull/1).
