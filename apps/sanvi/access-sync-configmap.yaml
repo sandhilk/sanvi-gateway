@@ -137,6 +137,12 @@ data:
         max_budget: 2
         budget_duration: 30d
         rpm_limit: 30
+      - alias: team-ml
+        owner: ml-lead
+        models: [sanvi-mock]
+        max_budget: 3
+        budget_duration: 30d
+        rpm_limit: 20
 kind: ConfigMap
 metadata:
   name: access-sync-files
