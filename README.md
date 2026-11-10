@@ -1,3 +1,5 @@
+<p align="center"><img src="docs/brand/sanvi-lockup.png" alt="SanVi" width="420"></p>
+
 # SanVi
 
 [![agent-evals](https://github.com/sandhilk/sanvi-gateway/actions/workflows/evals.yml/badge.svg)](https://github.com/sandhilk/sanvi-gateway/actions/workflows/evals.yml)
