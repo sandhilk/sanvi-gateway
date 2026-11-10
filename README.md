@@ -117,3 +117,10 @@ Who can use which models, with what budget, lives in **`access/teams.yaml`**, ch
 Teams removed from the file are **blocked** (reversible), not deleted. Keys the tool didn't create are left alone.
 
 **Tested:** two teams created; team-support's key calls `sanvi-mock` → **200** and is refused the paid model → **403**; a budget change in the file → `~ update` → applied → `= unchanged`. A greedy $50 request was **blocked by CI**: [PR #2](https://github.com/sandhilk/sanvi-gateway/pull/2).
+
+### Merge = applied (GitOps)
+On merge, Argo CD syncs `apps/sanvi/`, and a **PostSync Job** runs `access_sync.py --apply` inside the cluster:
+- a ServiceAccount that may only manage Secrets in `sanvi` (least privilege), non-root, read-only filesystem
+- `access/teams.yaml` and the script travel into the cluster as a ConfigMap (`./scripts/gen-configmaps.sh`), and CI fails if they drift
+
+**Tested end to end:** a PR added `team-ml` → the access-policy check passed → merge → the Argo CD Job logged `+ create team-ml` and stored the key in `sanvi-key-team-ml`, with no manual apply.
