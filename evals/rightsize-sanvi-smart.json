@@ -1,0 +1,44 @@
+{
+  "pass_rate": 1.0,
+  "passed": 5,
+  "total": 5,
+  "avg_attempts": 1.0,
+  "cost_usd": 0.2079,
+  "results": [
+    {
+      "id": "python-api",
+      "passed": true,
+      "attempts": 1,
+      "seconds": 22.0,
+      "last_line": "A ClusterIP Service exposes port 8080 and a PDB (minAvailable 1) keeps one pod up during disruptions. The Dockerfile exp"
+    },
+    {
+      "id": "node-web",
+      "passed": true,
+      "attempts": 1,
+      "seconds": 23.1,
+      "last_line": "A PDB (maxUnavailable 1) and zero-downtime rolling updates keep it available. The Dockerfile assumes the entrypoint is s"
+    },
+    {
+      "id": "go-single",
+      "passed": true,
+      "attempts": 1,
+      "seconds": 20.7,
+      "last_line": "The PDB template is included but only renders when replicaCount is above 1, so it is skipped at 1 replica and applies au"
+    },
+    {
+      "id": "java-api",
+      "passed": true,
+      "attempts": 1,
+      "seconds": 23.9,
+      "last_line": "Hardened with runAsNonRoot, no privilege escalation, read-only root filesystem with a /tmp volume, and a PodDisruptionBu"
+    },
+    {
+      "id": "python-env",
+      "passed": true,
+      "attempts": 1,
+      "seconds": 24.7,
+      "last_line": "Includes a ClusterIP Service and a PodDisruptionBudget (minAvailable 1). The Dockerfile assumes requirements.txt and an "
+    }
+  ]
+}

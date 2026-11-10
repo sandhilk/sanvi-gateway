@@ -124,3 +124,16 @@ On merge, Argo CD syncs `apps/sanvi/`, and a **PostSync Job** runs `access_sync.
 - `access/teams.yaml` and the script travel into the cluster as a ConfigMap (`./scripts/gen-configmaps.sh`), and CI fails if they drift
 
 **Tested end to end:** a PR added `team-ml` → the access-policy check passed → merge → the Argo CD Job logged `+ create team-ml` and stored the key in `sanvi-key-team-ml`, with no manual apply.
+
+## Right-Size Advisor: spend less without losing quality
+
+Most teams send every request to their most expensive model. `scripts/rightsize.py` runs the **same eval suite** on each model and recommends the **cheapest one that keeps quality** (pass rate at least the baseline's and at least 80%). It never recommends a switch that loses quality.
+
+**Result on the SanVi Launch workload (5 cases):**
+
+| Model | Pass rate | Cost per run | Avg time per case |
+|---|---|---|---|
+| sanvi-smart (Claude Sonnet) | 5/5 | $0.2079 | 22.9s |
+| sanvi-fast (Claude Haiku) | 5/5 | $0.0094 | 13.7s |
+
+**Recommendation: switch this workload to sanvi-fast.** Same quality, 95% lower cost, 40% faster. At $50 a month that's about **$48 a month saved**. Full report: [`evals/rightsize-report.md`](evals/rightsize-report.md). Re-run it any time from **Actions → rightsize → Run workflow**.

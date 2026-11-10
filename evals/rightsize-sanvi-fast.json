@@ -1,0 +1,44 @@
+{
+  "pass_rate": 1.0,
+  "passed": 5,
+  "total": 5,
+  "avg_attempts": 1.0,
+  "cost_usd": 0.0094,
+  "results": [
+    {
+      "id": "python-api",
+      "passed": true,
+      "attempts": 1,
+      "seconds": 11.8,
+      "last_line": "A PodDisruptionBudget (minAvailable: 1) keeps one pod up during voluntary disruptions; the image expects app/main.py exp"
+    },
+    {
+      "id": "node-web",
+      "passed": true,
+      "attempts": 1,
+      "seconds": 15.9,
+      "last_line": "Security context blocks privilege escalation, drops all capabilities, and uses a read-only root filesystem; a PDB with m"
+    },
+    {
+      "id": "go-single",
+      "passed": true,
+      "attempts": 1,
+      "seconds": 11.7,
+      "last_line": "Security context enforces runAsNonRoot, no privilege escalation, and a read-only root filesystem; the PDB renders only w"
+    },
+    {
+      "id": "java-api",
+      "passed": true,
+      "attempts": 1,
+      "seconds": 13.9,
+      "last_line": "A PodDisruptionBudget keeps at least one pod available during voluntary disruptions because replicas exceed 1."
+    },
+    {
+      "id": "python-env",
+      "passed": true,
+      "attempts": 1,
+      "seconds": 15.1,
+      "last_line": "Assumes the repo contains requirements.txt and an app.py exposing a WSGI object named app."
+    }
+  ]
+}

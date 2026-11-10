@@ -1,0 +1,53 @@
+name: rightsize
+on:
+  workflow_dispatch:
+    inputs:
+      monthly_spend: { description: "Current monthly spend on the baseline (USD)", default: "50" }
+permissions:
+  contents: read
+jobs:
+  rightsize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    services:
+      postgres:
+        image: postgres:16
+        env: { POSTGRES_USER: litellm, POSTGRES_PASSWORD: litellm, POSTGRES_DB: litellm }
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U litellm" --health-interval 5s
+          --health-timeout 5s --health-retries 10
+    env:
+      SANVI_GATEWAY: http://localhost:4000
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - uses: azure/setup-helm@v4
+      - name: Install kubeconform
+        run: |
+          curl -sSL https://github.com/yannh/kubeconform/releases/download/v0.6.7/kubeconform-linux-amd64.tar.gz \
+            | sudo tar xz -C /usr/local/bin kubeconform
+      - name: Start LiteLLM gateway
+        env:
+          LLM_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          MASTER="sk-ci-$(openssl rand -hex 16)"; echo "::add-mask::$MASTER"; echo "SANVI_ADMIN_KEY=$MASTER" >> "$GITHUB_ENV"
+          docker run -d --name litellm --network host -e LLM_API_KEY -e LITELLM_MASTER_KEY="$MASTER" \
+            -e DATABASE_URL=postgresql://litellm:litellm@localhost:5432/litellm \
+            -v "$PWD/ci/litellm-config.yaml:/app/config.yaml:ro" \
+            ghcr.io/berriai/litellm:main-stable --config /app/config.yaml --port 4000
+          for i in $(seq 1 60); do curl -sf localhost:4000/health/liveliness >/dev/null && break; sleep 5; done
+      - name: Key for both models ($1 cap)
+        run: |
+          KEY=$(curl -sf localhost:4000/key/generate -H "Authorization: Bearer $SANVI_ADMIN_KEY" -H "Content-Type: application/json" \
+            -d '{"models":["sanvi-smart","sanvi-fast"],"max_budget":1,"key_alias":"ci-rightsize"}' \
+            | python3 -c "import sys,json; print(json.load(sys.stdin)['key'])")
+          echo "::add-mask::$KEY"; echo "SANVI_AGENT_KEY=$KEY" >> "$GITHUB_ENV"
+      - name: Run Right-Size Advisor
+        run: |
+          python3 scripts/rightsize.py --monthly-spend "${{ inputs.monthly_spend }}"
+          cat evals/rightsize-report.md >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: rightsize-report, path: "evals/rightsize-*" }
