@@ -1,0 +1,19 @@
+# SanVi access as code: who may use which models, with what budget.
+# Change this file by pull request; scripts/access_sync.py makes the gateway match it.
+policy:
+  allowed_models: [sanvi-mock, sanvi-smart]
+  max_budget_per_team: 10     # USD per budget period
+  max_rpm: 120
+teams:
+  - alias: team-payments
+    owner: payments-lead
+    models: [sanvi-mock, sanvi-smart]
+    max_budget: 5
+    budget_duration: 30d
+    rpm_limit: 60
+  - alias: team-support
+    owner: support-lead
+    models: [sanvi-mock]
+    max_budget: 1
+    budget_duration: 30d
+    rpm_limit: 30
