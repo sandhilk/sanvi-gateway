@@ -1,0 +1,47 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: budget-watch
+  namespace: sanvi
+  labels: { app: budget-watch, part-of: sanvi }
+spec:
+  schedule: "*/15 * * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 0                  # an alert should not retry
+      ttlSecondsAfterFinished: 86400
+      template:
+        metadata:
+          labels: { app: budget-watch }
+        spec:
+          restartPolicy: Never
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65534
+            seccompProfile: { type: RuntimeDefault }
+          containers:
+            - name: budget-watch
+              image: python:3.12-alpine
+              command: ["python3", "/scripts/budget_watch.py"]
+              env:
+                - { name: PYTHONDONTWRITEBYTECODE, value: "1" }
+                - { name: SANVI_GATEWAY, value: "http://litellm.sanvi.svc:4000" }
+                - name: SANVI_ADMIN_KEY
+                  valueFrom: { secretKeyRef: { name: llm-keys, key: LITELLM_MASTER_KEY } }
+                - name: SANVI_ALERT_WEBHOOK      # optional: create secret budget-alerts/webhook for Slack
+                  valueFrom: { secretKeyRef: { name: budget-alerts, key: webhook, optional: true } }
+              resources:
+                requests: { cpu: 10m, memory: 32Mi }
+                limits: { memory: 64Mi }
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities: { drop: ["ALL"] }
+              volumeMounts:
+                - { name: scripts, mountPath: /scripts, readOnly: true }
+          volumes:
+            - name: scripts
+              configMap: { name: budget-watch-script }

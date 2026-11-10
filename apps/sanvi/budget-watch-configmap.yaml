@@ -1,0 +1,43 @@
+apiVersion: v1
+data:
+  budget_watch.py: |
+    #!/usr/bin/env python3
+    """SanVi budget watch: warn at 80% of a key's budget, alert at 100%.
+    Optional: set SANVI_ALERT_WEBHOOK (Slack-style) to post alerts. Exit code 2 if any key is at or over 80%."""
+    import json, os, sys, urllib.request
+
+    GW = os.environ.get("SANVI_GATEWAY", "http://localhost:4000")
+    ADMIN = os.environ.get("SANVI_ADMIN_KEY") or sys.exit("Set SANVI_ADMIN_KEY")
+    WARN = float(os.environ.get("SANVI_BUDGET_WARN", "0.8"))
+    HOOK = os.environ.get("SANVI_ALERT_WEBHOOK")
+
+    def call(path):
+        req = urllib.request.Request(GW + path, headers={"Authorization": f"Bearer {ADMIN}"})
+        return json.load(urllib.request.urlopen(req, timeout=30))
+
+    keys = call("/key/list?return_full_object=true&size=100").get("keys", [])
+    alerts = []
+    for k in keys:
+        if not isinstance(k, dict):
+            continue
+        budget, spend = k.get("max_budget"), k.get("spend") or 0
+        name = k.get("key_alias") or k.get("key_name") or "unnamed"
+        if not budget:
+            print(f"  -     {name:<20} spend ${spend:.4f}  (no budget)")
+            continue
+        pct = spend / budget
+        level = "OVER" if pct >= 1 else "WARN" if pct >= WARN else "OK"
+        print(f"  {level:<5} {name:<20} ${spend:.4f} / ${budget:.4f}  ({pct:.0%})")
+        if level != "OK":
+            alerts.append(f"SanVi budget {level}: {name} at {pct:.0%} (${spend:.2f} of ${budget:.4f})")
+
+    for a in alerts:
+        print("ALERT:", a)
+        if HOOK:
+            urllib.request.urlopen(urllib.request.Request(HOOK, data=json.dumps({"text": a}).encode(),
+                                   headers={"Content-Type": "application/json"}), timeout=10)
+    sys.exit(2 if alerts else 0)
+kind: ConfigMap
+metadata:
+  name: budget-watch-script
+  namespace: sanvi
