@@ -1,3 +1,5 @@
 .env
 *.key
 out/
+__pycache__/
+*.pyc
