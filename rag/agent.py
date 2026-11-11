@@ -20,7 +20,7 @@ from langgraph.graph import END, StateGraph
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 GATEWAY = os.environ.get("SANVI_GATEWAY", "http://localhost:4000").rstrip("/")
 MODEL = os.environ.get("SANVI_RAG_MODEL", "sanvi-fast")
-TOP_K = int(os.environ.get("SANVI_RAG_TOP_K", "4"))
+TOP_K = int(os.environ.get("SANVI_RAG_TOP_K", "6"))
 NOT_FOUND = "I can't find that in the SanVi docs."
 
 
@@ -44,7 +44,7 @@ def llm():
     key = os.environ.get("SANVI_AGENT_KEY")
     if not key:
         sys.exit("set SANVI_AGENT_KEY (read -s SANVI_AGENT_KEY && export SANVI_AGENT_KEY)")
-    return ChatOpenAI(model=MODEL, base_url=f"{GATEWAY}/v1", api_key=key, temperature=0, max_tokens=500)
+    return ChatOpenAI(model=MODEL, base_url=f"{GATEWAY}/v1", api_key=key, max_tokens=500)
 
 
 def retrieve(s: State) -> State:
@@ -62,13 +62,15 @@ def generate(s: State) -> State:
               f"If the answer is not in the context, reply exactly: \"{NOT_FOUND}\"{strict}\n\n"
               f"CONTEXT:\n{ctx}\n\nQUESTION: {s['question']}\nANSWER (max 120 words):")
     ans = llm().invoke(prompt).content.strip()
+    ans = ans.replace("\u2019", "'")
     return {"answer": ans, "attempts": s.get("attempts", 0) + 1}
 
 
 def check(s: State) -> State:
     sources = {d["source"] for d in s["docs"]}
     cited = set(re.findall(r"\[([^\]]+)\]", s["answer"]))
-    return {"grounded": NOT_FOUND in s["answer"] or bool(cited & sources)}
+    ok = any(c.lower().strip() in src.lower() or src.lower() in c.lower() for c in cited for src in sources if len(c.strip()) > 3)
+    return {"grounded": NOT_FOUND in s["answer"] or ok}
 
 
 def route(s: State) -> str:

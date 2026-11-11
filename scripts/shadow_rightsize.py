@@ -47,7 +47,7 @@ ANSWER B:
 
 def chat(model, messages, max_tokens=800):
     """Call the gateway; return (text, cost_usd, seconds). Cost comes from LiteLLM's response header."""
-    body = json.dumps({"model": model, "messages": messages, "max_tokens": max_tokens, "temperature": 0}).encode()
+    body = json.dumps({"model": model, "messages": messages, "max_tokens": max_tokens}).encode()
     req = urllib.request.Request(f"{GATEWAY}/v1/chat/completions", data=body,
                                  headers={"Authorization": f"Bearer {KEY}", "Content-Type": "application/json"})
     t0 = time.time()
