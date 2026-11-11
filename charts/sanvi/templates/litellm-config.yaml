@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-gateway-config
+  labels: {{- include "sanvi.labels" . | nindent 4 }}
+data:
+  config.yaml: |
+    model_list:
+    {{- range .Values.models }}
+      - model_name: {{ .name }}
+        litellm_params:
+          model: {{ .model }}
+          api_key: os.environ/LLM_API_KEY
+          {{- if .mockResponse }}
+          mock_response: {{ .mockResponse | quote }}
+          {{- end }}
+    {{- end }}
+    general_settings:
+      master_key: os.environ/LITELLM_MASTER_KEY

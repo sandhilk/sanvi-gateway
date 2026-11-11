@@ -1,0 +1,52 @@
+# SanVi Helm values. Install: helm install sanvi ./charts/sanvi -n sanvi --create-namespace -f my-values.yaml
+
+gateway:
+  image: ghcr.io/berriai/litellm:main-stable   # pin a specific tag in production
+  replicas: 1
+  resources:
+    requests: { cpu: 200m, memory: 512Mi }
+    limits: { memory: 1536Mi }
+  service:
+    type: ClusterIP
+    port: 4000
+
+# Models teams can call through SanVi. "name" is what apps use; "model" is the provider model.
+models:
+  - name: sanvi-smart
+    model: anthropic/claude-sonnet-5-5
+  - name: sanvi-fast
+    model: anthropic/claude-haiku-5-5
+  - name: sanvi-mock          # free test model, no provider call
+    model: openai/gpt-4o-mini
+    mockResponse: "Hello from the SanVi gateway (mock model, no cost)"
+
+# Where the provider key (LLM_API_KEY) and gateway admin key (LITELLM_MASTER_KEY) come from.
+secrets:
+  # existingSecret: you create a Secret with keys LLM_API_KEY and LITELLM_MASTER_KEY (recommended to start)
+  # externalSecret: synced from Vault / AWS Secrets Manager / Azure Key Vault by External Secrets Operator
+  mode: existingSecret
+  name: llm-keys
+  externalSecret:
+    storeName: vault
+    storeKind: ClusterSecretStore
+    refreshInterval: 1m
+    llmApiKey: { key: sanvi/llm, property: api_key }
+    masterKey: { key: sanvi/gateway, property: master_key }
+
+# Postgres stores keys, budgets and the audit trail (spend logs).
+database:
+  # cloudnativepg: creates a CloudNativePG cluster (operator must be installed)
+  # external: use your own Postgres (e.g. RDS); give a Secret with a "uri" key
+  mode: cloudnativepg
+  cloudnativepg:
+    instances: 1             # use 3 for high availability
+    storage: 2Gi
+  external:
+    secretName: sanvi-db
+    secretKey: uri
+
+budgetWatch:
+  enabled: true
+  schedule: "*/15 * * * *"   # every 15 minutes
+  warnAt: "0.8"              # warn at 80% of budget
+  webhookSecret: budget-alerts   # optional Secret with key "webhook" (Slack/Teams incoming webhook)

@@ -1,0 +1,8 @@
+apiVersion: v2
+name: sanvi
+description: SanVi - self-hosted AI gateway with per-team keys, budgets, cost alerts and an audit trail, on Kubernetes.
+type: application
+version: 0.1.0
+appVersion: "1.3"
+home: https://github.com/sandhilk/sanvi-gateway
+license: Apache-2.0

@@ -1,0 +1,15 @@
+SanVi is installing in namespace {{ .Release.Namespace }}.
+
+1. Wait for the gateway:
+   kubectl -n {{ .Release.Namespace }} rollout status deploy/{{ .Release.Name }}-gateway
+
+2. Test it:
+   kubectl -n {{ .Release.Namespace }} port-forward svc/{{ .Release.Name }}-gateway 4000:{{ .Values.gateway.service.port }}
+   curl localhost:4000/health/liveliness
+
+3. Point your apps at SanVi (OpenAI-compatible API):
+   base_url = http://{{ .Release.Name }}-gateway.{{ .Release.Namespace }}.svc:{{ .Values.gateway.service.port }}/v1
+   api_key  = a SanVi team key (create teams with access/teams.yaml + scripts/access_sync.py)
+
+Models available: {{ range .Values.models }}{{ .name }} {{ end }}
+Budget alerts: {{ if .Values.budgetWatch.enabled }}every "{{ .Values.budgetWatch.schedule }}"{{ else }}disabled{{ end }}

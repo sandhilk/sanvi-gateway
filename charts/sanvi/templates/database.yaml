@@ -1,0 +1,15 @@
+{{- if eq .Values.database.mode "cloudnativepg" }}
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: {{ .Release.Name }}-pg
+  labels: {{- include "sanvi.labels" . | nindent 4 }}
+spec:
+  instances: {{ .Values.database.cloudnativepg.instances }}
+  storage:
+    size: {{ .Values.database.cloudnativepg.storage }}
+  bootstrap:
+    initdb:
+      database: litellm
+      owner: litellm
+{{- end }}

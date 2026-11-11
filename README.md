@@ -168,6 +168,14 @@ python3 rag/agent.py "How do I give a new team access to AI models?"
 python3 rag/eval_rag.py                                 # RAG eval, threshold 80%
 ```
 
+## Install anywhere: Helm chart
+
+`charts/sanvi` installs the gateway, Postgres (CloudNativePG or your own), Budget Watch and secrets wiring into any Kubernetes cluster in one command:
+```bash
+helm install sanvi ./charts/sanvi -n sanvi --create-namespace
+```
+See [charts/sanvi/README.md](charts/sanvi/README.md) for secrets from Vault / AWS Secrets Manager, external Postgres (RDS) and HA options.
+
 ## Compliance Evidence Report: audit-ready in one command
 
 Regulated companies spend weeks collecting evidence that their AI use is controlled. `scripts/compliance_report.py` checks SanVi's **real configuration** (and, with `--live`, the running cluster) against 12 controls and writes `evals/compliance-report.md` + `.json`, mapping each one to related **ISO/IEC 27001:2022, SOC 2 and EU AI Act** themes:

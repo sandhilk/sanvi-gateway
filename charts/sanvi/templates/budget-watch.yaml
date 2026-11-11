@@ -1,0 +1,56 @@
+{{- if .Values.budgetWatch.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-budget-watch
+  labels: {{- include "sanvi.labels" . | nindent 4 }}
+data:
+  budget_watch.py: |
+{{ .Files.Get "files/budget_watch.py" | indent 4 }}
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ .Release.Name }}-budget-watch
+  labels: {{- include "sanvi.labels" . | nindent 4 }}
+spec:
+  schedule: {{ .Values.budgetWatch.schedule | quote }}
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 0                 # a failed run is an alert, not something to retry
+      ttlSecondsAfterFinished: 86400
+      template:
+        spec:
+          restartPolicy: Never
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65534
+            seccompProfile: { type: RuntimeDefault }
+          containers:
+            - name: budget-watch
+              image: python:3.12-alpine
+              command: ["python3", "/scripts/budget_watch.py"]
+              env:
+                - { name: PYTHONDONTWRITEBYTECODE, value: "1" }
+                - { name: SANVI_GATEWAY, value: "http://{{ .Release.Name }}-gateway.{{ .Release.Namespace }}.svc:{{ .Values.gateway.service.port }}" }
+                - { name: SANVI_BUDGET_WARN, value: {{ .Values.budgetWatch.warnAt | quote }} }
+                - name: SANVI_ADMIN_KEY
+                  valueFrom: { secretKeyRef: { name: {{ .Values.secrets.name }}, key: LITELLM_MASTER_KEY } }
+                - name: SANVI_ALERT_WEBHOOK
+                  valueFrom: { secretKeyRef: { name: {{ .Values.budgetWatch.webhookSecret }}, key: webhook, optional: true } }
+              resources:
+                requests: { cpu: 10m, memory: 32Mi }
+                limits: { memory: 64Mi }
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities: { drop: ["ALL"] }
+              volumeMounts:
+                - { name: scripts, mountPath: /scripts, readOnly: true }
+          volumes:
+            - name: scripts
+              configMap: { name: {{ .Release.Name }}-budget-watch }
+{{- end }}

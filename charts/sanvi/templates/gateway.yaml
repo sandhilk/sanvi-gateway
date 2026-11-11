@@ -1,0 +1,57 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-gateway
+  labels: {{- include "sanvi.labels" . | nindent 4 }}
+    app: {{ .Release.Name }}-gateway
+spec:
+  replicas: {{ .Values.gateway.replicas }}
+  selector:
+    matchLabels: { app: {{ .Release.Name }}-gateway }
+  template:
+    metadata:
+      labels: { app: {{ .Release.Name }}-gateway }
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/litellm-config.yaml") . | sha256sum }}
+    spec:
+      containers:
+        - name: gateway
+          image: {{ .Values.gateway.image }}
+          args: ["--config", "/app/config.yaml", "--port", "4000"]
+          ports: [{ containerPort: 4000 }]
+          envFrom:
+            - secretRef: { name: {{ .Values.secrets.name }} }
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef: { name: {{ include "sanvi.dbSecret" . }}, key: {{ include "sanvi.dbKey" . }} }
+          volumeMounts:
+            - { name: config, mountPath: /app/config.yaml, subPath: config.yaml }
+          resources: {{- toYaml .Values.gateway.resources | nindent 12 }}
+          securityContext:
+            allowPrivilegeEscalation: false
+          startupProbe:
+            httpGet: { path: /health/liveliness, port: 4000 }
+            periodSeconds: 10
+            failureThreshold: 30
+          readinessProbe:
+            httpGet: { path: /health/readiness, port: 4000 }
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /health/liveliness, port: 4000 }
+            periodSeconds: 20
+      volumes:
+        - name: config
+          configMap: { name: {{ .Release.Name }}-gateway-config }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-gateway
+  labels: {{- include "sanvi.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.gateway.service.type }}
+  selector: { app: {{ .Release.Name }}-gateway }
+  ports:
+    - port: {{ .Values.gateway.service.port }}
+      targetPort: 4000
