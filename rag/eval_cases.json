@@ -1,0 +1,8 @@
+[
+ {"q": "How does SanVi decide whether a cheaper model is good enough?", "source": "Right-Size", "must_contain": ["eval"]},
+ {"q": "How do I give a new team access to AI models in SanVi?", "source": "access", "must_contain": ["pull request"]},
+ {"q": "Where are the real provider API keys stored?", "source": "README", "must_contain": ["vault"]},
+ {"q": "What does the kill switch do?", "source": "kill", "must_contain": ["block"]},
+ {"q": "What does the Shadow Right-Sizer report?", "source": "Shadow", "must_contain": ["saving"]},
+ {"q": "What is the office Wi-Fi password?", "expect_refusal": true}
+]

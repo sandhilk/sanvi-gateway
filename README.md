@@ -151,6 +151,23 @@ python3 scripts/shadow_rightsize.py                  # writes evals/shadow-repor
 
 The report gives cost per request, speed, verdict and **projected monthly saving per workload** (current spend from `evals/shadow_workloads.json` × measured cost cut). The included sample is an **illustrative insurer** (12 synthetic requests; spend figures are examples, not a real company). Calls go through SanVi, so keys, budgets and logs stay in your cluster; prompts still go to the model provider as normal traffic does.
 
+## Docs Assistant: RAG + LangGraph agent through SanVi
+
+Engineers ask questions about the platform ("how do I add a team?", "what does the kill switch do?") and get answers **only from SanVi's own docs, with sources**.
+
+- **Ingest** (`rag/ingest.py`): README sections and script docstrings are chunked and stored in a **Chroma vector database** with local sentence embeddings (all-MiniLM-L6-v2), so documents are not sent anywhere to be embedded.
+- **Agent** (`rag/agent.py`): a **LangGraph** workflow, retrieve → generate → check. The check node is a guardrail: the answer must cite a retrieved source, or say it isn't in the docs; otherwise it retries once with a stricter prompt.
+- **Through the gateway**: the agent calls SanVi's **OpenAI-compatible API**, so its key, budget, rate limit and spend logs work like any other team's.
+- **Evaluated** (`rag/eval_rag.py`): retrieval hit rate + grounded answers + one out-of-scope question it must refuse; exits 1 below 80%.
+
+```bash
+pip install -r rag/requirements.txt
+python3 rag/ingest.py                                   # build the vector index
+read -s SANVI_AGENT_KEY && export SANVI_AGENT_KEY
+python3 rag/agent.py "How do I give a new team access to AI models?"
+python3 rag/eval_rag.py                                 # RAG eval, threshold 80%
+```
+
 ## AI spend dashboard (Grafana)
 
 ![SanVi AI spend dashboard](docs/grafana-dashboard.png)
