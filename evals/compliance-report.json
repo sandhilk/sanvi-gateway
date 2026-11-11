@@ -1,0 +1,135 @@
+{
+  "generated": "2026-11-11 11:26 UTC",
+  "commit": "8cf6b1d",
+  "live": false,
+  "summary": {
+    "PASS": 12,
+    "WARN": 0,
+    "FAIL": 0
+  },
+  "controls": [
+    {
+      "id": "C1",
+      "control": "No secrets in source control",
+      "status": "PASS",
+      "evidence": "scanned 57 tracked files, no provider keys or private keys found",
+      "frameworks": [
+        "ISO 27001 A.8.12 Data leakage prevention",
+        "SOC 2 CC6.1"
+      ]
+    },
+    {
+      "id": "C2",
+      "control": "Provider keys held in a secrets manager (Vault), injected at runtime",
+      "status": "PASS",
+      "evidence": "apps/sanvi/external-secret.yaml uses secretStoreRef 'vault'",
+      "frameworks": [
+        "ISO 27001 A.5.17 Authentication information",
+        "ISO 27001 A.8.24 Use of cryptography",
+        "SOC 2 CC6.1"
+      ]
+    },
+    {
+      "id": "C3",
+      "control": "Least-privilege AI access: per-team identity, model allow-list, budget and rate limit",
+      "status": "PASS",
+      "evidence": "3 teams, each with owner, model allow-list, budget (max $10) and rate limit (max 120 rpm)",
+      "frameworks": [
+        "ISO 27001 A.5.15 Access control",
+        "ISO 27001 A.5.18 Access rights",
+        "SOC 2 CC6.3"
+      ]
+    },
+    {
+      "id": "C4",
+      "control": "Access changes go through review and an automated policy check",
+      "status": "PASS",
+      "evidence": "access changes arrive by pull request (access-policy.yml validates them in CI) and are applied by an Argo CD PostSync job after merge",
+      "frameworks": [
+        "ISO 27001 A.8.32 Change management",
+        "SOC 2 CC8.1"
+      ]
+    },
+    {
+      "id": "C5",
+      "control": "Audit trail of AI usage (who, which model, when, cost)",
+      "status": "PASS",
+      "evidence": "gateway connected to Postgres (DATABASE_URL), so each request is recorded with key, team, model and cost in spend logs",
+      "frameworks": [
+        "ISO 27001 A.8.15 Logging",
+        "SOC 2 CC7.2",
+        "EU AI Act Art. 12 Record-keeping (theme)"
+      ]
+    },
+    {
+      "id": "C6",
+      "control": "Separation of duties: monitoring sees cost, not prompt content",
+      "status": "PASS",
+      "evidence": "Grafana reads spend data as the read-only role grafana_ro (column-level grants: no access to message content)",
+      "frameworks": [
+        "ISO 27001 A.8.3 Information access restriction",
+        "SOC 2 CC6.1"
+      ]
+    },
+    {
+      "id": "C7",
+      "control": "Continuous cost monitoring with alerts",
+      "status": "PASS",
+      "evidence": "budget-watch CronJob runs on schedule '*/15 * * * *' and fails (alerts) when a team passes its budget",
+      "frameworks": [
+        "ISO 27001 A.8.16 Monitoring activities",
+        "SOC 2 CC7.2"
+      ]
+    },
+    {
+      "id": "C8",
+      "control": "Incident response: reversible kill switch for AI access",
+      "status": "PASS",
+      "evidence": "scripts/kill_switch.sh can block one team or every key in seconds, and reverse it",
+      "frameworks": [
+        "ISO 27001 A.5.26 Response to incidents",
+        "SOC 2 CC7.4"
+      ]
+    },
+    {
+      "id": "C9",
+      "control": "Accuracy and robustness: automated evaluation gate in CI",
+      "status": "PASS",
+      "evidence": "evals.yml runs the eval suite in CI and fails below 80%; last recorded run: 5/5",
+      "frameworks": [
+        "ISO 27001 A.8.29 Security testing in development",
+        "EU AI Act Art. 15 Accuracy and robustness (theme)"
+      ]
+    },
+    {
+      "id": "C10",
+      "control": "Human oversight: AI agent changes require human approval",
+      "status": "PASS",
+      "evidence": "the AI agent can only propose changes as a labelled pull request; a human reviews and merges",
+      "frameworks": [
+        "EU AI Act Art. 14 Human oversight (theme)",
+        "ISO 27001 A.8.32 Change management"
+      ]
+    },
+    {
+      "id": "C11",
+      "control": "Guardrails: grounded, cited answers and refusal outside scope",
+      "status": "PASS",
+      "evidence": "RAG assistant must cite retrieved sources or retry; its eval includes an out-of-scope question it must refuse",
+      "frameworks": [
+        "EU AI Act Art. 13 Transparency (theme)",
+        "EU AI Act Art. 15 Accuracy (theme)"
+      ]
+    },
+    {
+      "id": "C12",
+      "control": "Model choice justified by measured cost and quality",
+      "status": "PASS",
+      "evidence": "evals/rightsize-report.md records cost, speed and quality per model before any switch",
+      "frameworks": [
+        "SOC 2 CC3.2 Risk assessment (theme)",
+        "ISO 27001 A.5.8 Information security in project management (theme)"
+      ]
+    }
+  ]
+}

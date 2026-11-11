@@ -168,6 +168,31 @@ python3 rag/agent.py "How do I give a new team access to AI models?"
 python3 rag/eval_rag.py                                 # RAG eval, threshold 80%
 ```
 
+## Compliance Evidence Report: audit-ready in one command
+
+Regulated companies spend weeks collecting evidence that their AI use is controlled. `scripts/compliance_report.py` checks SanVi's **real configuration** (and, with `--live`, the running cluster) against 12 controls and writes `evals/compliance-report.md` + `.json`, mapping each one to related **ISO/IEC 27001:2022, SOC 2 and EU AI Act** themes:
+
+| Control | Evidence it checks |
+|---|---|
+| No secrets in Git | scans every tracked file for provider keys and private keys |
+| Keys in Vault | ExternalSecret uses the Vault store (live: synced) |
+| Least-privilege AI access | every team has owner, model allow-list, budget and rate limit inside policy |
+| Reviewed access changes | pull request + policy check in CI + PostSync apply |
+| Audit trail | gateway writes every request (team, model, cost) to Postgres |
+| Separation of duties | dashboards use a read-only role that cannot read prompts |
+| Cost monitoring | budget-watch CronJob schedule (live: last success) |
+| Kill switch | reversible block for one team or all keys |
+| Quality gate | eval suite fails CI below 80% |
+| Human oversight | the agent can only open pull requests |
+| Guardrails | RAG answers must cite sources; refusal is tested |
+| Justified model choice | right-size report with cost, speed and quality |
+
+```bash
+python3 scripts/compliance_report.py          # repo evidence (also runs in CI: .github/workflows/compliance.yml)
+python3 scripts/compliance_report.py --live   # + cluster checks via kubectl
+```
+CI fails if any control fails, so compliance is checked on every change, not once a year. _This is control evidence to support an audit, not a certification or legal advice._
+
 ## AI spend dashboard (Grafana)
 
 ![SanVi AI spend dashboard](docs/grafana-dashboard.png)
