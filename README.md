@@ -210,3 +210,18 @@ Total spend, spend by team and model, spend over time, **budget used per team** 
 - **Dashboard as code:** `dashboards/sanvi-spend.json`, shipped as a ConfigMap and loaded by Grafana's sidecar
 - **Deployed by Argo CD:** Grafana Helm chart (pinned 10.5.15), datasource provisioned from values
 - **Privacy by design:** Grafana uses a read-only Postgres user with **column-level grants**. It can read cost and timing, but **never prompts or responses** (`permission denied`).
+
+## Secure pipeline (DevSecOps)
+
+Every pull request and every push to `main` runs [`secure-pipeline.yml`](.github/workflows/secure-pipeline.yml):
+
+| Stage | Tool | What it stops |
+|---|---|---|
+| Secrets scan | gitleaks | Keys or passwords committed to Git (full history) |
+| IaC scan | Checkov | Unsafe Kubernetes, Helm and Dockerfile settings |
+| Policy tests | Kyverno CLI | Proves the admission policies block root containers, `:latest` and untagged images |
+| Image gate | Trivy | Critical/high vulnerabilities that have a fix |
+| SBOM | Syft | Unknown ingredients: every image gets an SPDX bill of materials |
+| Sign + verify | cosign (keyless) | Tampered or unsigned images: Kyverno only admits SanVi images signed by this workflow on `main` |
+
+Skipped checks are recorded risk decisions, each with a reason and an owner, in [`THREAT_MODEL.md`](THREAT_MODEL.md) (STRIDE + risk register). Policies live in [`policies/kyverno/`](policies/kyverno/).

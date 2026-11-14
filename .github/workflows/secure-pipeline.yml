@@ -1,0 +1,163 @@
+# SanVi secure pipeline: DevSecOps controls on every pull request and every push to main.
+#
+#   1. secrets   - gitleaks: no passwords or keys in Git (full history)
+#   2. iac       - Checkov: Kubernetes manifests, rendered Helm chart and Dockerfile
+#   3. policies  - Kyverno CLI: prove the admission policies block what they should
+#   4. image     - build -> Trivy scan (gate) -> SBOM -> push + cosign keyless sign + SBOM attestation (main only)
+#   5. upstream  - Trivy report on third-party images we run (visibility, not a gate)
+#
+# Every action is pinned to a full commit SHA, so a moved tag can't change what runs here.
+name: secure-pipeline
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read            # least privilege by default; jobs ask for more only if they need it
+
+env:
+  IMAGE: ghcr.io/${{ github.repository_owner }}/sanvi-budget-watch
+
+jobs:
+  secrets:
+    name: Secrets scan (gitleaks)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0    # scan the whole history, not just the latest commit
+      - name: Install gitleaks
+        run: |
+          curl -sSfL https://github.com/gitleaks/gitleaks/releases/download/v8.21.2/gitleaks_8.21.2_linux_x64.tar.gz \
+            | tar xz -C /usr/local/bin gitleaks
+      - name: Scan for committed secrets (fails the build on any finding)
+        run: gitleaks detect --source . --redact --verbose
+
+  iac:
+    name: IaC and config scan (Checkov)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b # v5.3.0
+        with:
+          python-version: "3.12"
+      - uses: azure/setup-helm@fe7b79cd5ee1e45176fcad797de68ecaf3ca4814 # v4.2.0
+      - run: pip install checkov==3.2.*
+      - name: Kubernetes manifests (Argo CD path)
+        run: checkov -d apps --framework kubernetes --config-file .checkov.yaml
+      - name: Helm chart (rendered with default values)
+        run: |
+          helm template sanvi charts/sanvi -n sanvi > /tmp/sanvi-chart.yaml
+          checkov -f /tmp/sanvi-chart.yaml --framework kubernetes --config-file .checkov.yaml
+      - name: Dockerfile
+        run: checkov -f images/budget-watch/Dockerfile --framework dockerfile --config-file .checkov.yaml
+
+  policies:
+    name: Policy as code (Kyverno tests)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Install Kyverno CLI
+        run: |
+          curl -sSfL https://github.com/kyverno/kyverno/releases/download/v1.13.2/kyverno-cli_v1.13.2_linux_x86_64.tar.gz \
+            | tar xz -C /usr/local/bin kyverno
+      - name: Prove the policies allow good pods and block bad ones
+        run: kyverno test policies/kyverno/tests
+
+  image:
+    name: Build, scan, SBOM, sign
+    runs-on: ubuntu-latest
+    needs: [secrets, iac, policies]       # never build an image from code that failed the earlier gates
+    permissions:
+      contents: read
+      packages: write       # push to GitHub Container Registry
+      id-token: write       # OIDC token for keyless cosign signing (no stored signing key)
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: docker/setup-buildx-action@c47758b77c9736f4b2ef4073d4d51994fabfe349 # v3.7.1
+
+      - name: Build the image (not pushed yet)
+        uses: docker/build-push-action@48aba3b46d1b1fec4febb7c5d0c644b249a11355 # v6.10.0
+        with:
+          context: .
+          file: images/budget-watch/Dockerfile
+          load: true
+          tags: ${{ env.IMAGE }}:${{ github.sha }}
+
+      - name: Trivy gate - block CRITICAL/HIGH vulnerabilities that have a fix
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0
+        with:
+          image-ref: ${{ env.IMAGE }}:${{ github.sha }}
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true            # no fix available = track as a risk, don't block delivery
+          exit-code: "1"
+          format: table
+
+      - name: SBOM (ingredient list) with Syft
+        uses: anchore/sbom-action@55dc4ee22412511ee8c3142cbea40418e6cec693 # v0.17.8
+        with:
+          image: ${{ env.IMAGE }}:${{ github.sha }}
+          format: spdx-json
+          output-file: sbom.spdx.json
+          upload-artifact: true
+
+      # ---- Everything below runs only on main: pull requests never publish images ----
+      - name: Log in to GHCR
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3.3.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Push the exact image that was scanned
+        if: github.event_name != 'pull_request'
+        id: push
+        run: |
+          docker push "${IMAGE}:${GITHUB_SHA}"
+          DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' "${IMAGE}:${GITHUB_SHA}")
+          echo "digest=${DIGEST}" >> "$GITHUB_OUTPUT"
+          echo "Pushed ${DIGEST}" >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: sigstore/cosign-installer@dc72c7d5c4d10cd6bcb8cf6e3fd625a9e5e537da # v3.7.0
+        if: github.event_name != 'pull_request'
+
+      - name: Sign by digest (keyless) and attach the SBOM as a signed attestation
+        if: github.event_name != 'pull_request'
+        env:
+          DIGEST: ${{ steps.push.outputs.digest }}
+        run: |
+          cosign sign --yes "${DIGEST}"
+          cosign attest --yes --type spdxjson --predicate sbom.spdx.json "${DIGEST}"
+
+      - name: Verify the signature (the same check Kyverno does at admission)
+        if: github.event_name != 'pull_request'
+        env:
+          DIGEST: ${{ steps.push.outputs.digest }}
+        run: |
+          cosign verify "${DIGEST}" \
+            --certificate-identity "https://github.com/${GITHUB_REPOSITORY}/.github/workflows/secure-pipeline.yml@refs/heads/main" \
+            --certificate-oidc-issuer https://token.actions.githubusercontent.com > /dev/null
+          echo "Signature verified for ${DIGEST}" >> "$GITHUB_STEP_SUMMARY"
+
+  upstream:
+    name: Third-party image report (Trivy)
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        image:
+          - ghcr.io/berriai/litellm:main-stable
+          - python:3.12-alpine
+    steps:
+      - name: Report CRITICAL/HIGH findings (visibility, not a gate - see R2/R3 in THREAT_MODEL.md)
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0
+        with:
+          image-ref: ${{ matrix.image }}
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: "0"
+          format: table

@@ -1,0 +1,47 @@
+# Test pods: each one is expected to pass or fail a specific rule (see kyverno-test.yaml)
+apiVersion: v1
+kind: Pod
+metadata: { name: good-pod, namespace: sanvi, labels: { app: budget-watch } }
+spec:
+  securityContext: { runAsNonRoot: true, runAsUser: 65534 }
+  containers:
+    - name: app
+      image: python:3.12-alpine
+      securityContext: { allowPrivilegeEscalation: false }
+---
+apiVersion: v1
+kind: Pod
+metadata: { name: latest-pod, namespace: sanvi, labels: { app: demo } }
+spec:
+  securityContext: { runAsNonRoot: true }
+  containers:
+    - name: app
+      image: python:latest
+      securityContext: { allowPrivilegeEscalation: false }
+---
+apiVersion: v1
+kind: Pod
+metadata: { name: no-tag-pod, namespace: sanvi, labels: { app: demo } }
+spec:
+  securityContext: { runAsNonRoot: true }
+  containers:
+    - name: app
+      image: python
+      securityContext: { allowPrivilegeEscalation: false }
+---
+apiVersion: v1
+kind: Pod
+metadata: { name: root-pod, namespace: sanvi, labels: { app: demo } }
+spec:
+  containers:
+    - name: app
+      image: python:3.12-alpine
+      securityContext: { allowPrivilegeEscalation: true }
+---
+apiVersion: v1
+kind: Pod
+metadata: { name: litellm-pod, namespace: sanvi, labels: { app: litellm } }
+spec:
+  containers:
+    - name: litellm
+      image: ghcr.io/berriai/litellm:main-stable

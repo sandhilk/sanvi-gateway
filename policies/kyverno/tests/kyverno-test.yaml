@@ -1,0 +1,21 @@
+apiVersion: cli.kyverno.io/v1alpha1
+kind: Test
+metadata:
+  name: sanvi-policies
+policies:
+  - ../disallow-latest-tag.yaml
+  - ../require-non-root.yaml
+resources:
+  - resources.yaml
+results:
+  # disallow-latest-tag
+  - { policy: disallow-latest-tag, rule: disallow-latest,   resources: [good-pod],   kind: Pod, result: pass }
+  - { policy: disallow-latest-tag, rule: disallow-latest,   resources: [latest-pod], kind: Pod, result: fail }
+  - { policy: disallow-latest-tag, rule: require-image-tag, resources: [good-pod],   kind: Pod, result: pass }
+  - { policy: disallow-latest-tag, rule: require-image-tag, resources: [no-tag-pod], kind: Pod, result: fail }
+  # require-non-root
+  - { policy: require-non-root, rule: run-as-non-root,                    resources: [good-pod],    kind: Pod, result: pass }
+  - { policy: require-non-root, rule: run-as-non-root,                    resources: [root-pod],    kind: Pod, result: fail }
+  - { policy: require-non-root, rule: pod-or-container-must-say-non-root, resources: [good-pod],    kind: Pod, result: pass }
+  - { policy: require-non-root, rule: pod-or-container-must-say-non-root, resources: [root-pod],    kind: Pod, result: fail }
+  - { policy: require-non-root, rule: run-as-non-root,                    resources: [litellm-pod], kind: Pod, result: skip }

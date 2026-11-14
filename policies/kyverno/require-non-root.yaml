@@ -1,0 +1,59 @@
+# Containers must not run as root or escalate privileges.
+# Enforced in the sanvi namespace. The upstream LiteLLM image is the known exception
+# (tracked as R3 in THREAT_MODEL.md), so it is excluded by name rather than weakening the rule.
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: require-non-root
+  annotations:
+    policies.kyverno.io/title: Require non-root, no privilege escalation
+    policies.kyverno.io/category: Pod security
+    policies.kyverno.io/severity: high
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+    - name: run-as-non-root
+      match:
+        any:
+          - resources:
+              kinds: [Pod]
+              namespaces: [sanvi]
+      exclude:
+        any:
+          - resources:
+              kinds: [Pod]
+              selector:
+                matchLabels: { app: litellm }
+      validate:
+        message: "Run as a non-root user (runAsNonRoot: true) and set allowPrivilegeEscalation: false."
+        pattern:
+          spec:
+            =(securityContext):
+              =(runAsNonRoot): true
+            containers:
+              - securityContext:
+                  allowPrivilegeEscalation: false
+                  =(runAsNonRoot): true
+    - name: pod-or-container-must-say-non-root
+      match:
+        any:
+          - resources:
+              kinds: [Pod]
+              namespaces: [sanvi]
+      exclude:
+        any:
+          - resources:
+              kinds: [Pod]
+              selector:
+                matchLabels: { app: litellm }
+      validate:
+        message: "runAsNonRoot must be true on the pod or on every container."
+        anyPattern:
+          - spec:
+              securityContext:
+                runAsNonRoot: true
+          - spec:
+              containers:
+                - securityContext:
+                    runAsNonRoot: true
