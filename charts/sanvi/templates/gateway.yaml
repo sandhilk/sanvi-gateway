@@ -4,6 +4,17 @@ metadata:
   name: {{ .Release.Name }}-gateway
   labels: {{- include "sanvi.labels" . | nindent 4 }}
     app: {{ .Release.Name }}-gateway
+  annotations:
+    # Checkov risk acceptances for the upstream LiteLLM image (R3 in THREAT_MODEL.md). Metadata only.
+    checkov.io/skip1: CKV_K8S_20=Upstream image; hardening not yet tested (R3)
+    checkov.io/skip2: CKV_K8S_22=LiteLLM writes to its filesystem at start (R3)
+    checkov.io/skip3: CKV_K8S_23=Upstream image user not yet verified as non-root (R3)
+    checkov.io/skip4: CKV_K8S_28=Covered by dropping ALL capabilities once R3 is tested
+    checkov.io/skip5: CKV_K8S_29=Pod securityContext to be added with R3
+    checkov.io/skip6: CKV_K8S_30=Container securityContext to be added with R3
+    checkov.io/skip7: CKV_K8S_31=seccomp RuntimeDefault to be added with R3
+    checkov.io/skip8: CKV_K8S_37=Capabilities drop to be added with R3
+    checkov.io/skip9: CKV_K8S_40=High UID to be set with R3
 spec:
   replicas: {{ .Values.gateway.replicas }}
   selector:

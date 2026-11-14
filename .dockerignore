@@ -1,0 +1,8 @@
+.git
+**/__pycache__
+**/*.pyc
+.env
+*.key
+rag/.chroma
+docs
+evals

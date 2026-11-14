@@ -1,0 +1,36 @@
+# Only run SanVi images that were signed by this repo's pipeline on main.
+# Signing is keyless (Sigstore): no private key exists to steal or rotate.
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: require-signed-sanvi-images
+  annotations:
+    policies.kyverno.io/title: Require signed SanVi images
+    policies.kyverno.io/category: Supply chain
+    policies.kyverno.io/severity: high
+    policies.kyverno.io/description: >-
+      Images under ghcr.io/sandhilk/sanvi-* must carry a cosign signature created by
+      the secure-pipeline workflow on the main branch of sandhilk/sanvi-gateway.
+      An unsigned or tampered image is refused at admission.
+spec:
+  validationFailureAction: Enforce
+  webhookTimeoutSeconds: 30
+  background: false
+  rules:
+    - name: verify-cosign-keyless-signature
+      match:
+        any:
+          - resources:
+              kinds: [Pod]
+      verifyImages:
+        - imageReferences:
+            - "ghcr.io/sandhilk/sanvi-*"
+          mutateDigest: true        # pin the running image to the verified digest
+          verifyDigest: true
+          attestors:
+            - entries:
+                - keyless:
+                    subject: "https://github.com/sandhilk/sanvi-gateway/.github/workflows/secure-pipeline.yml@refs/heads/main"
+                    issuer: "https://token.actions.githubusercontent.com"
+                    rekor:
+                      url: https://rekor.sigstore.dev

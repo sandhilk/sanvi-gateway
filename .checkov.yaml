@@ -1,0 +1,15 @@
+# Checkov settings for the SanVi secure pipeline.
+# Every skipped check is a RECORDED RISK DECISION, not a silent ignore.
+# Each one has a reason here and a matching row in THREAT_MODEL.md (risk register).
+compact: true
+quiet: true
+skip-check:
+  - CKV_DOCKER_2   # HEALTHCHECK: Budget Watch is a short CronJob; Kubernetes ignores Docker HEALTHCHECK (accepted)
+  - CKV_K8S_11     # CPU limits: deliberately unset to avoid CPU throttling; CPU requests are set (accepted)
+  - CKV_K8S_15     # imagePullPolicy Always: not needed once images are pinned by tag/digest (accepted)
+  - CKV_K8S_43     # Image digest: SanVi's own images are pinned to the verified digest by Kyverno (mutateDigest); third-party digest pinning is R2
+  - CKV_K8S_35     # Secrets as env vars: LiteLLM reads provider keys from env; file mounts are R6
+  - CKV_K8S_38     # Service account token mount: automountServiceAccountToken=false is R4
+  - CKV2_K8S_6     # NetworkPolicy: default-deny network policies are R5
+  - CKV2_K8S_5     # access-sync can read Secrets: required by design, scoped to one namespace by a Role (accepted, R7)
+  - CKV_K8S_21     # Default namespace: Helm sets the namespace at install time (helm install -n), so rendered charts carry none (accepted)
