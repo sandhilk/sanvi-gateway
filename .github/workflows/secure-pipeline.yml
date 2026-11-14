@@ -51,8 +51,8 @@ jobs:
       - name: Helm chart (rendered with default values)
         run: |
           helm template sanvi charts/sanvi -n sanvi > /tmp/sanvi-chart.yaml
-          # CKV_K8S_21 skipped for the chart only: Helm sets the namespace at install time (helm install -n)
-          checkov -f /tmp/sanvi-chart.yaml --framework kubernetes --config-file .checkov.yaml --skip-check CKV_K8S_21
+          # CKV_K8S_21 (default namespace) is a recorded decision in .checkov.yaml
+          checkov -f /tmp/sanvi-chart.yaml --framework kubernetes --config-file .checkov.yaml
       - name: Dockerfile
         run: checkov -f images/budget-watch/Dockerfile --framework dockerfile --config-file .checkov.yaml
 
