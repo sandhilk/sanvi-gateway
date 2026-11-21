@@ -1,19 +1,40 @@
 <p align="center"><img src="docs/brand/sanvi-social-preview.png" alt="SanVi: open-source AI platform for Kubernetes" width="720"></p>
 
-# SanVi
+<h1 align="center">SanVi</h1>
 
-[![agent-evals](https://github.com/sandhilk/sanvi-gateway/actions/workflows/evals.yml/badge.svg)](https://github.com/sandhilk/sanvi-gateway/actions/workflows/evals.yml)
+<p align="center"><b>One gateway for every LLM your company uses, with budgets, a kill switch, evals in CI and audit-ready guardrails. Runs on your Kubernetes.</b></p>
 
-**An open-source AI platform for Kubernetes.** A gateway that controls how a company uses AI (per-team keys, budgets, rate limits and cost tracking), and an agent that turns one sentence into validated deployment files.
+<p align="center">
+<a href="https://github.com/sandhilk/sanvi-gateway/actions/workflows/evals.yml"><img src="https://github.com/sandhilk/sanvi-gateway/actions/workflows/evals.yml/badge.svg" alt="agent-evals"></a>
+<a href="https://github.com/sandhilk/sanvi-gateway/actions/workflows/secure-pipeline.yml"><img src="https://github.com/sandhilk/sanvi-gateway/actions/workflows/secure-pipeline.yml/badge.svg" alt="secure-pipeline"></a>
+<a href="https://github.com/sandhilk/sanvi-gateway/actions/workflows/compliance.yml"><img src="https://github.com/sandhilk/sanvi-gateway/actions/workflows/compliance.yml/badge.svg" alt="compliance"></a>
+<a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache%202.0-blue" alt="Apache 2.0"></a>
+</p>
 
-> Personal open-source project, built in the open. Everything listed under "Works today" is running and tested.
+## Why SanVi
+Every team wants to use AI. Finance wants to know what it costs, security wants to know where the keys are, and audit wants proof it's controlled. SanVi sits between your apps and the model providers and answers all three.
 
-## Works today
-- **SanVi Gateway**: LiteLLM deployed from Git by one Argo CD root app (app-of-apps)
-- **Keys never in code**: the provider key lives only in Vault and is synced in by External Secrets; rotation needs no redeploy
-- **Per-team virtual keys** stored in Postgres (CloudNativePG), each with its own models, budget and rate limit
-- **SanVi Launch agent**: one sentence in, Dockerfile + Helm chart out, validated with `helm lint`, `kubeconform` and a non-root rule; it feeds errors back and retries (up to 3 attempts)
-- **Evals**: 5 fixed prompts (Python, Node, Go, Java); latest run **5/5 passed, avg 1.0 attempts, $0.18 total**
+| | Result (measured, details below) |
+|---|---|
+| 💸 **Cheaper** | Right-Size Advisor: Claude Haiku matched Sonnet on the eval suite, **95% lower cost, 40% faster** |
+| 🛑 **Safer** | Per-team keys, budgets and rate limits; **kill switch** blocks one team or everyone in seconds, reversibly |
+| ✅ **Quality-gated** | Evals run in CI; changes **fail below 80%** pass rate |
+| 🔐 **Keys never in code** | Provider keys live only in **Vault**; rotate with no redeploy (~70 s) |
+| 📋 **Audit-ready** | 12-control evidence report mapped to ISO 27001, SOC 2 and EU AI Act themes, checked in CI |
+| 🧑‍⚖️ **Human in the loop** | The deployment agent can only open **pull requests**, never push to `main` |
+
+## What's inside
+| Component | What it does |
+|---|---|
+| **SanVi Gateway** | OpenAI-compatible gateway (LiteLLM engine) with per-team virtual keys, budgets, rate limits and cost logging in Postgres |
+| **Budget Watch + Kill Switch** | Warns at 80%, alerts at 100%, reversible block per team or all keys |
+| **AI access as code** | Teams, models and budgets in `access/teams.yaml`, changed by pull request, applied by Argo CD |
+| **Right-Size Advisor / Shadow Right-Sizer** | Finds the cheapest model that keeps quality, on fixed evals and on real-style traffic |
+| **SanVi Launch agent** | One sentence in, validated Dockerfile + Helm chart out, delivered as a pull request |
+| **Docs Assistant (RAG)** | LangGraph agent answering only from SanVi's docs, with sources and a refusal guardrail |
+| **Compliance Evidence Report** | 12 controls checked against the real config and cluster, every change |
+| **AI spend dashboard** | Grafana: spend by team and model, budget used, latency; cannot read prompts |
+| **Secure pipeline** | gitleaks, Checkov, Kyverno, Trivy, Syft SBOM, cosign keyless signing |
 
 ## Architecture
 ```mermaid
@@ -31,50 +52,24 @@ flowchart LR
   P <-->|keys, budgets, spend| G
 ```
 
+## Quickstart
+Prerequisites: Docker, [kind](https://kind.sigs.k8s.io/), kubectl, Helm, and a model provider API key.
+```bash
+git clone https://github.com/sandhilk/sanvi-gateway && cd sanvi-gateway
+kind create cluster --name sanvi --config kind/cluster.yaml
+helm install sanvi ./charts/sanvi -n sanvi --create-namespace   # secrets options: charts/sanvi/README.md
+./demo.sh                                                        # GitOps, keys, rate limit, revoke, agent, evals
+```
+The full GitOps setup (Argo CD app-of-apps, Vault, External Secrets) starts from [`bootstrap/root-app.yaml`](bootstrap/root-app.yaml).
+
+> Personal open-source project, built in the open. Every result in this README is from a real, repeatable test. Example figures in the shadow report use synthetic data and are labelled as such.
+
 ## How a request flows
 1. An app calls the gateway with its **virtual key** (OpenAI-compatible API)
 2. The gateway checks the key: no key gives 401, a fake key 400, a revoked key 401
 3. It checks the key's **budget** and **rate limit**: over the limit gives 429; over budget is blocked
 4. It forwards the call with the real provider key, which the app never sees
 5. It logs the team, model, tokens and **cost**
-
-## Tested
-| Test | Result |
-|---|---|
-| Secret synced from Vault to Kubernetes | SecretSynced |
-| Rotate the key in Vault | Updated in about 70 s, no redeploy |
-| Whole platform from one Argo CD root app | All apps Synced and Healthy |
-| No key / wrong key / valid key | 401 / 400 / answered |
-| Rate limit 2 per minute | 200, 200, 429 |
-| Budget exceeded | Blocked: "Budget has been exceeded" |
-| Revoke a key | 401 instantly |
-| Agent evals (5 prompts) | 5/5 passed, avg 1.0 attempts, $0.18 |
-
-## Run the agent and evals
-```bash
-export SANVI_AGENT_KEY=<a gateway virtual key>
-python3 agent/sanvi_launch.py "Deploy a Python FastAPI service called payments on port 8080 with 2 replicas"
-python3 evals/run_evals.py        # exits 1 if the pass rate drops below 80%
-```
-
-## Lessons learned
-- **Vault dev mode lost every secret on a restart.** The gateway stayed up because External Secrets kept the last good copy in Kubernetes, and Vault was restored from it. Production: HA Vault, persistent storage, auto-unseal.
-- **An empty secret "syncs" successfully and fails later.** Validate secrets (length, format) before storing them.
-- **Secrets passed as environment variables need a pod restart** after rotation. Production: Reloader.
-- **Argo CD polls Git every 3 minutes.** Production: a Git webhook for near-instant sync.
-
-## Roadmap
-- **AI access as code**: teams, budgets and model access as YAML in Git, changed by pull request
-- **Agent policy gate**: generated infrastructure must pass policy-as-code before a pull request opens
-- **Zero static AI keys**: pods authenticate with their Kubernetes ServiceAccount via Vault
-- Agent opens pull requests for human review; evals in CI; cost dashboards; one-command Helm install
-
-## Lab notes
-Runs on kind (in GitHub Codespaces). Vault runs in dev mode for local learning only. LiteLLM is the gateway engine; SanVi is the platform, security model and agent built around it.
-
----
-
-Created by **Sandhil Kypa** · Licensed under [Apache 2.0](LICENSE) · See [NOTICE](NOTICE)
 
 ## Budget alerts and kill switch
 
@@ -86,25 +81,6 @@ Budgets alone cut a team off at 100% with no warning. SanVi adds two operator to
 | `scripts/kill_switch.sh` | Reversible red button: `block <team>`, `block-all`, `unblock <team>`, `unblock-all`, `status`. Keys, budgets and history are kept. | `block team-demo` → **401**; `unblock` → **200** |
 
 Use cases: a leaked key, a runaway agent loop, or an unexpected spend spike, stopped in seconds.
-
-## Agent → pull request → human review
-
-The agent never pushes to `main`. After a PASS, `agent/sanvi_pr.sh <app> "<request>"`:
-
-1. Checks guard rails: valid app name, allowed repo (`SANVI_ALLOWED_REPOS`), clean working tree.
-2. Re-runs `helm lint`, `kubeconform` and a non-root check on the output.
-3. Copies it to `generated/<app>/` on a new `sanvi/<app>-<time>` branch.
-4. Opens a pull request labelled `sanvi-agent`, with the request, files and validation results.
-
-`generated/` is not watched by Argo CD, so merging never deploys anything by surprise. Example: [PR #1](https://github.com/sandhilk/sanvi-gateway/pull/1).
-
-### Budget watch runs in the cluster (GitOps)
-`apps/sanvi/budget-watch-cronjob.yaml` runs `budget_watch.py` every 15 minutes as a hardened CronJob: non-root, read-only filesystem, all capabilities dropped. It reaches the gateway over the cluster network and reads the admin key from the existing Secret, so no new secrets are needed. The script ships as a ConfigMap generated from `scripts/budget_watch.py`, a single source of truth.
-
-A job **fails on purpose** when any team is at 80%+, so the failure *is* the alert. In production, the standard Prometheus `KubeJobFailed` rule pages on it, and the optional `budget-alerts` secret (`webhook` key) also posts to Slack.
-
-Regenerate the ConfigMap after editing the script:
-`kubectl -n sanvi create configmap budget-watch-script --from-file=budget_watch.py=scripts/budget_watch.py --dry-run=client -o yaml > apps/sanvi/budget-watch-configmap.yaml`
 
 ## AI access as code
 
@@ -151,6 +127,25 @@ python3 scripts/shadow_rightsize.py                  # writes evals/shadow-repor
 
 The report gives cost per request, speed, verdict and **projected monthly saving per workload** (current spend from `evals/shadow_workloads.json` × measured cost cut). The included sample is an **illustrative insurer** (12 synthetic requests; spend figures are examples, not a real company). Calls go through SanVi, so keys, budgets and logs stay in your cluster; prompts still go to the model provider as normal traffic does.
 
+## Agent → pull request → human review
+
+The agent never pushes to `main`. After a PASS, `agent/sanvi_pr.sh <app> "<request>"`:
+
+1. Checks guard rails: valid app name, allowed repo (`SANVI_ALLOWED_REPOS`), clean working tree.
+2. Re-runs `helm lint`, `kubeconform` and a non-root check on the output.
+3. Copies it to `generated/<app>/` on a new `sanvi/<app>-<time>` branch.
+4. Opens a pull request labelled `sanvi-agent`, with the request, files and validation results.
+
+`generated/` is not watched by Argo CD, so merging never deploys anything by surprise. Example: [PR #1](https://github.com/sandhilk/sanvi-gateway/pull/1).
+
+### Budget watch runs in the cluster (GitOps)
+`apps/sanvi/budget-watch-cronjob.yaml` runs `budget_watch.py` every 15 minutes as a hardened CronJob: non-root, read-only filesystem, all capabilities dropped. It reaches the gateway over the cluster network and reads the admin key from the existing Secret, so no new secrets are needed. The script ships as a ConfigMap generated from `scripts/budget_watch.py`, a single source of truth.
+
+A job **fails on purpose** when any team is at 80%+, so the failure *is* the alert. In production, the standard Prometheus `KubeJobFailed` rule pages on it, and the optional `budget-alerts` secret (`webhook` key) also posts to Slack.
+
+Regenerate the ConfigMap after editing the script:
+`kubectl -n sanvi create configmap budget-watch-script --from-file=budget_watch.py=scripts/budget_watch.py --dry-run=client -o yaml > apps/sanvi/budget-watch-configmap.yaml`
+
 ## Docs Assistant: RAG + LangGraph agent through SanVi
 
 Engineers ask questions about the platform ("how do I add a team?", "what does the kill switch do?") and get answers **only from SanVi's own docs, with sources**.
@@ -167,14 +162,6 @@ read -s SANVI_AGENT_KEY && export SANVI_AGENT_KEY
 python3 rag/agent.py "How do I give a new team access to AI models?"
 python3 rag/eval_rag.py                                 # RAG eval, threshold 80%
 ```
-
-## Install anywhere: Helm chart
-
-`charts/sanvi` installs the gateway, Postgres (CloudNativePG or your own), Budget Watch and secrets wiring into any Kubernetes cluster in one command:
-```bash
-helm install sanvi ./charts/sanvi -n sanvi --create-namespace
-```
-See [charts/sanvi/README.md](charts/sanvi/README.md) for secrets from Vault / AWS Secrets Manager, external Postgres (RDS) and HA options.
 
 ## Compliance Evidence Report: audit-ready in one command
 
@@ -225,3 +212,52 @@ Every pull request and every push to `main` runs [`secure-pipeline.yml`](.github
 | Sign + verify | cosign (keyless) | Tampered or unsigned images: Kyverno only admits SanVi images signed by this workflow on `main` |
 
 Skipped checks are recorded risk decisions, each with a reason and an owner, in [`THREAT_MODEL.md`](THREAT_MODEL.md) (STRIDE + risk register). Policies live in [`policies/kyverno/`](policies/kyverno/).
+
+## Install anywhere: Helm chart
+
+`charts/sanvi` installs the gateway, Postgres (CloudNativePG or your own), Budget Watch and secrets wiring into any Kubernetes cluster in one command:
+```bash
+helm install sanvi ./charts/sanvi -n sanvi --create-namespace
+```
+See [charts/sanvi/README.md](charts/sanvi/README.md) for secrets from Vault / AWS Secrets Manager, external Postgres (RDS) and HA options.
+
+## Tested
+| Test | Result |
+|---|---|
+| Secret synced from Vault to Kubernetes | SecretSynced |
+| Rotate the key in Vault | Updated in about 70 s, no redeploy |
+| Whole platform from one Argo CD root app | All apps Synced and Healthy |
+| No key / wrong key / valid key | 401 / 400 / answered |
+| Rate limit 2 per minute | 200, 200, 429 |
+| Budget exceeded | Blocked: "Budget has been exceeded" |
+| Revoke a key | 401 instantly |
+| Agent evals (5 prompts) | 5/5 passed, avg 1.0 attempts, $0.18 |
+
+## Run the agent and evals
+```bash
+export SANVI_AGENT_KEY=<a gateway virtual key>
+python3 agent/sanvi_launch.py "Deploy a Python FastAPI service called payments on port 8080 with 2 replicas"
+python3 evals/run_evals.py        # exits 1 if the pass rate drops below 80%
+```
+
+## Lessons learned
+- **Vault dev mode lost every secret on a restart.** The gateway stayed up because External Secrets kept the last good copy in Kubernetes, and Vault was restored from it. Production: HA Vault, persistent storage, auto-unseal.
+- **An empty secret "syncs" successfully and fails later.** Validate secrets (length, format) before storing them.
+- **Secrets passed as environment variables need a pod restart** after rotation. Production: Reloader.
+- **Argo CD polls Git every 3 minutes.** Production: a Git webhook for near-instant sync.
+
+## Roadmap
+- **AI access as code**: teams, budgets and model access as YAML in Git, changed by pull request
+- **Agent policy gate**: generated infrastructure must pass policy-as-code before a pull request opens
+- **Zero static AI keys**: pods authenticate with their Kubernetes ServiceAccount via Vault
+- Agent opens pull requests for human review; evals in CI; cost dashboards; one-command Helm install
+
+## Lab notes
+Runs on kind (in GitHub Codespaces). Vault runs in dev mode for local learning only. LiteLLM is the gateway engine; SanVi is the platform, security model and agent built around it.
+
+## Contributing
+Issues and pull requests are welcome. Good places to start are labelled [`good first issue`](https://github.com/sandhilk/sanvi-gateway/labels/good%20first%20issue). Please open an issue before large changes.
+
+---
+
+Created by **Sandhil Kypa** · Licensed under [Apache 2.0](LICENSE) · See [NOTICE](NOTICE)
